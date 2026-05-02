@@ -53,10 +53,10 @@ if pagina == "Início":
     1. Vá para a aba **Análise**
     2. Faça upload da planilha garantindo que:
        - **Coluna A = Abstract**
-       - **Coluna E = Título**
-       - **Coluna F = Keywords**
+       - **Coluna B = Título**
+       - **Coluna C = Keywords**
     3. Insira os termos relevantes:
-       - Separe os termos por **vírgula** ou **quebra de linha**
+       - Separe os termos por **vírgula** ou **quebra de linha**. PONTO IMPORTANTE: Se sua lista de artigo possuir mais de um idioma, coloque as palavras chaves nos idiomas que possam ter também.
        - Exemplo:
          fish community, comunidade de peixes, marine ecosystem, ecossistema marinho
        - **Acentos são permitidos** (ex: ecologia, manguezal, região)
@@ -119,8 +119,8 @@ neotropical, tropical atlantic, gulf of mexico, caribbean sea"""
             st.stop()
 
         col_abstract = df.columns[0]
-        col_titulo = df.columns[4]
-        col_keywords = df.columns[5]
+        col_titulo = df.columns[1]
+        col_keywords = df.columns[2]
 
         st.markdown("### 👀 Preview")
         st.dataframe(df.head())
