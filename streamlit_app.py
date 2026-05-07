@@ -112,9 +112,8 @@ if pagina == "Início":
 
     | Coluna | Conteúdo |
     |---|---|
-    | A | Abstract |
-    | B | Título |
-    | C | Keywords |
+    | A | B | C |
+    | Abstract | Título | Keywords |
 
     ---
 
