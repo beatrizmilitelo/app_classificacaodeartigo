@@ -116,7 +116,7 @@ if pagina == "Início":
 
     ---
 
-    ### 3. Insira termos relevantes
+    ### 3. Insira termos relevantes (separados por vírgula)
 
     Exemplo:
     - fish ecology
@@ -125,7 +125,7 @@ if pagina == "Início":
 
     ---
 
-    ### 4. Insira termos negativos
+    ### 4. Insira termos negativos (separados por vírgula)
 
     Exemplo:
     - freshwater
