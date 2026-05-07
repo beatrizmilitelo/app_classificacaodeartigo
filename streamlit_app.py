@@ -58,6 +58,7 @@ if pagina == "Início":
        - **Coluna A = Abstract**
        - **Coluna B = Título**
        - **Coluna C = Keywords**
+       E que o arquivo seja um CSV
     3. Insira os termos relevantes:
        - Separe os termos por **vírgula** ou **quebra de linha**
        - Se sua lista possuir mais de um idioma, coloque as palavras-chave nos idiomas necessários
