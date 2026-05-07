@@ -649,21 +649,31 @@ Mostra o artigo mais fortemente relacionado à pesquisa.
 
         st.bar_chart(counts)
 
-        # =================================================
+       # =================================================
         # HISTOGRAMA DOS SCORES
         # =================================================
 
-        st.markdown(
-            "## 📉 Distribuição dos scores"
-        )
+st.markdown(
+    "## 📉 Distribuição dos scores"
+)
 
-        hist_data = pd.DataFrame(
-            df_metricas["score_final"]
-        )
+hist_data = (
+    df_metricas["score_final"]
+    .value_counts()
+    .sort_index()
+    .reset_index()
+)
 
-        st.bar_chart(
-            hist_data.value_counts().sort_index()
-        )
+hist_data.columns = [
+    "Score",
+    "Quantidade"
+]
+
+st.bar_chart(
+    data=hist_data,
+    x="Score",
+    y="Quantidade"
+)
 
         # =================================================
         # ARTIGOS AMBÍGUOS
