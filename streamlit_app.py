@@ -109,9 +109,7 @@ if pagina == "Início":
     ### 2. Faça upload da planilha CSV
 
     Estrutura esperada:
-
-    | Coluna | Conteúdo |
-    |---|---|
+    |---|---|---|
     | A | B | C |
     | Abstract | Título | Keywords |
 
