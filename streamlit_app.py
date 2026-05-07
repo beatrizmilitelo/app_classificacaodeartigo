@@ -425,61 +425,50 @@ neotropical, tropical atlantic, gulf of mexico, caribbean sea"""
             )
 
 # =========================================================
-# PÁGINA MÉTRICAS
+# PÁGINA INDICADORES
 # =========================================================
 
 elif pagina == "Métricas":
 
-    st.title("📈 Avaliação do Classificador")
+    st.title("📊 Indicadores do Screening")
 
     st.markdown("""
 
-    Faça upload de uma planilha contendo:
+    Esta página apresenta indicadores descritivos do processo de triagem.
 
-    - classificação REAL feita manualmente
-    - classificação do robô
+    Como não existe uma classificação real manual (`cluster_real`),
+    não é possível calcular métricas supervisionadas como:
 
-    ---
+    - Accuracy
+    - Precision
+    - Recall
+    - F1-score
 
-    ## 📋 Estrutura esperada
-
-    A planilha deve conter:
-
-    - cluster_real
-    - cluster
-
-    Exemplo:
-
-    | cluster_real | cluster |
-    |---|---|
-    | Incluir | Incluir |
-    | Excluir | Avaliar |
+    Em vez disso, o sistema mostra indicadores úteis para avaliar:
+    - comportamento do robô
+    - nível de restrição
+    - economia de trabalho manual
+    - distribuição dos scores
 
     """)
 
+    # =====================================================
+    # UPLOAD
+    # =====================================================
+
     file_metricas = st.file_uploader(
-        "📁 Upload da planilha de validação",
+        "📁 Upload da planilha classificada",
         type=["csv"],
         key="metricas"
     )
 
     if file_metricas:
 
-        df_metricas = pd.read_csv(
-            file_metricas
-        )
+        df_metricas = pd.read_csv(file_metricas)
 
         # =================================================
         # VALIDAÇÃO
         # =================================================
-
-        if "cluster_real" not in df_metricas.columns:
-
-            st.error(
-                "❌ Coluna 'cluster_real' não encontrada."
-            )
-
-            st.stop()
 
         if "cluster" not in df_metricas.columns:
 
@@ -489,71 +478,98 @@ elif pagina == "Métricas":
 
             st.stop()
 
-        y_true = df_metricas["cluster_real"]
-        y_pred = df_metricas["cluster"]
+        if "score_final" not in df_metricas.columns:
+
+            st.error(
+                "❌ Coluna 'score_final' não encontrada."
+            )
+
+            st.stop()
 
         # =================================================
-        # MÉTRICAS
+        # INDICADORES
         # =================================================
 
-        accuracy = accuracy_score(
-            y_true,
-            y_pred
+        total_artigos = len(df_metricas)
+
+        incluir = (
+            df_metricas["cluster"] == "Incluir"
+        ).sum()
+
+        avaliar = (
+            df_metricas["cluster"] == "Avaliar"
+        ).sum()
+
+        excluir = (
+            df_metricas["cluster"] == "Excluir"
+        ).sum()
+
+        incluir_pct = (
+            incluir / total_artigos
+        ) * 100
+
+        avaliar_pct = (
+            avaliar / total_artigos
+        ) * 100
+
+        excluir_pct = (
+            excluir / total_artigos
+        ) * 100
+
+        score_medio = (
+            df_metricas["score_final"].mean()
         )
 
-        precision = precision_score(
-            y_true,
-            y_pred,
-            average="weighted",
-            zero_division=0
+        score_max = (
+            df_metricas["score_final"].max()
         )
 
-        recall = recall_score(
-            y_true,
-            y_pred,
-            average="weighted",
-            zero_division=0
-        )
-
-        f1 = f1_score(
-            y_true,
-            y_pred,
-            average="weighted",
-            zero_division=0
+        score_min = (
+            df_metricas["score_final"].min()
         )
 
         # =================================================
-        # RESULTADOS
+        # MÉTRICAS PRINCIPAIS
         # =================================================
 
-        st.markdown(
-            "## 📊 Métricas principais"
-        )
+        st.markdown("## 📈 Indicadores principais")
 
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
 
         with col1:
 
             st.metric(
-                "Accuracy",
-                f"{accuracy:.2%}"
+                "Total de artigos",
+                total_artigos
             )
 
             st.metric(
-                "Precision",
-                f"{precision:.2%}"
+                "% Inclusão",
+                f"{incluir_pct:.1f}%"
             )
 
         with col2:
 
             st.metric(
-                "Recall",
-                f"{recall:.2%}"
+                "% Avaliação",
+                f"{avaliar_pct:.1f}%"
             )
 
             st.metric(
-                "F1-Score",
-                f"{f1:.2%}"
+                "% Exclusão",
+                f"{excluir_pct:.1f}%"
+            )
+
+        with col3:
+
+            st.metric(
+                "Score médio",
+                f"{score_medio:.2f}"
+            )
+
+            st.metric(
+                "Maior score",
+                score_max
             )
 
         # =================================================
@@ -564,148 +580,129 @@ elif pagina == "Métricas":
 
         st.markdown("""
 
-### 🎯 Accuracy (Acurácia)
+### ✅ % Inclusão
 
-Percentual total de acertos.
+Mostra quantos artigos foram considerados fortemente relevantes.
 
-- ✅ > 85% → excelente
-- ✅ 75–85% → bom
-- ⚠️ < 70% → revisar termos
-
----
-
-### 🔎 Precision
-
-Mostra quantos artigos classificados como relevantes realmente eram relevantes.
-
-- ✅ > 80% → poucos falsos positivos
-- ⚠️ < 70% → muitos artigos irrelevantes incluídos
-
-Se estiver baixa:
-- adicione termos negativos
-- aumente penalização
-- remova termos genéricos
+#### Interpretação:
+- ✅ 5–30% → geralmente saudável
+- ⚠️ > 50% → sistema muito permissivo
+- ⚠️ < 5% → sistema muito restritivo
 
 ---
 
-### 🧠 Recall
+### ⚠️ % Avaliação
 
-Capacidade do robô encontrar artigos relevantes.
+Representa artigos ambíguos que precisam de revisão humana.
 
-Métrica MAIS importante em revisão sistemática.
-
-- ✅ > 90% → excelente
-- ✅ 80–90% → bom
-- ⚠️ < 80% → risco de perder artigos importantes
-
-Se estiver baixo:
-- adicione sinônimos
-- reduza penalização
-- diminua threshold
+#### Interpretação:
+- Valores moderados são esperados
+- Muito alto pode indicar:
+    - termos genéricos
+    - thresholds ruins
+    - excesso de ruído
 
 ---
 
-### ⚖️ F1-Score
+### ❌ % Exclusão
 
-Equilíbrio entre precision e recall.
+Mostra quanto trabalho manual o robô economizou.
 
-- ✅ > 85% → excelente
-- ✅ 75–85% → bom
-- ⚠️ < 70% → sistema instável
+Exemplo:
+- 70% exclusão
+→ o pesquisador precisará ler apenas 30% dos artigos.
+
+#### Interpretação:
+- ✅ > 50% → boa redução de workload
+- ⚠️ > 90% → risco de exclusão excessiva
 
 ---
 
-## 📌 Valores ideais
+### 📊 Score médio
 
-| Métrica | Ideal |
-|---|---|
-| Accuracy | > 80% |
-| Precision | > 75% |
-| Recall | > 90% |
-| F1-score | > 80% |
+Indica o quão relacionados os artigos estão aos termos pesquisados.
+
+#### Interpretação:
+- Score alto → base muito alinhada
+- Score baixo → muitos artigos marginais
+
+---
+
+### 🔥 Maior score
+
+Mostra o artigo mais fortemente relacionado à pesquisa.
 
 """)
 
         # =================================================
-        # MATRIZ DE CONFUSÃO
+        # DISTRIBUIÇÃO
         # =================================================
 
         st.markdown(
-            "## 🔍 Matriz de confusão"
+            "## 📊 Distribuição das categorias"
         )
 
-        labels = sorted(
-            list(
-                set(y_true) |
-                set(y_pred)
-            )
-        )
-
-        cm = confusion_matrix(
-            y_true,
-            y_pred,
-            labels=labels
-        )
-
-        fig, ax = plt.subplots(
-            figsize=(6, 5)
-        )
-
-        im = ax.imshow(cm)
-
-        ax.set_xticks(
-            np.arange(len(labels))
-        )
-
-        ax.set_yticks(
-            np.arange(len(labels))
-        )
-
-        ax.set_xticklabels(labels)
-        ax.set_yticklabels(labels)
-
-        plt.xlabel("Predito")
-        plt.ylabel("Real")
-
-        for i in range(len(labels)):
-            for j in range(len(labels)):
-
-                ax.text(
-                    j,
-                    i,
-                    cm[i, j],
-                    ha="center",
-                    va="center"
-                )
-
-        st.pyplot(fig)
-
-        # =================================================
-        # ERROS
-        # =================================================
-
-        st.markdown(
-            "## ❌ Artigos classificados incorretamente"
-        )
-
-        erros = df_metricas[
-            df_metricas["cluster_real"] !=
+        counts = (
             df_metricas["cluster"]
+            .value_counts()
+        )
+
+        st.bar_chart(counts)
+
+        # =================================================
+        # HISTOGRAMA DOS SCORES
+        # =================================================
+
+        st.markdown(
+            "## 📉 Distribuição dos scores"
+        )
+
+        hist_data = pd.DataFrame(
+            df_metricas["score_final"]
+        )
+
+        st.bar_chart(
+            hist_data.value_counts().sort_index()
+        )
+
+        # =================================================
+        # ARTIGOS AMBÍGUOS
+        # =================================================
+
+        st.markdown(
+            "## ⚠️ Artigos ambíguos"
+        )
+
+        ambiguos = df_metricas[
+            (
+                df_metricas["score_final"] >= 2
+            )
+            &
+            (
+                df_metricas["score_final"] <= 4
+            )
         ]
 
-        st.dataframe(erros)
+        st.markdown(f"""
+        Artigos com score intermediário geralmente são os mais difíceis de classificar e merecem revisão manual prioritária.
+
+        Quantidade encontrada:
+        **{len(ambiguos)}**
+        """)
+
+        st.dataframe(ambiguos)
 
         # =================================================
         # DOWNLOAD
         # =================================================
 
-        csv_erros = erros.to_csv(
+        csv_ambiguos = ambiguos.to_csv(
             index=False
         ).encode("utf-8")
 
         st.download_button(
-            "⬇️ Baixar artigos com erro",
-            csv_erros,
-            "artigos_com_erro.csv",
+            "⬇️ Baixar artigos ambíguos",
+            csv_ambiguos,
+            "artigos_ambiguos.csv",
             "text/csv"
         )
