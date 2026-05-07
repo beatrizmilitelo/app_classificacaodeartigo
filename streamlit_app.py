@@ -32,6 +32,9 @@ def preparar_termos(entrada):
 def score_texto(texto, termos, peso):
     return sum(peso for termo in termos if termo in texto)
 
+def score_negativo(texto, termos, peso):
+    return sum(peso for termo in termos if termo in texto)
+
 # =========================
 # PÁGINA INICIAL
 # =========================
@@ -56,12 +59,13 @@ if pagina == "Início":
        - **Coluna B = Título**
        - **Coluna C = Keywords**
     3. Insira os termos relevantes:
-       - Separe os termos por **vírgula** ou **quebra de linha**. PONTO IMPORTANTE: Se sua lista de artigo possuir mais de um idioma, coloque as palavras chaves nos idiomas que possam ter também.
+       - Separe os termos por **vírgula** ou **quebra de linha**
+       - Se sua lista possuir mais de um idioma, coloque as palavras-chave nos idiomas necessários
+    4. Insira termos para reduzir score:
        - Exemplo:
-         fish community, comunidade de peixes, marine ecosystem, ecossistema marinho
-       - **Acentos são permitidos** (ex: ecologia, manguezal, região)
-    4. Clique em **Rodar classificação**
-    5. Baixe o resultado
+         freshwater, river, rio, agua doce
+    5. Clique em **Rodar classificação**
+    6. Baixe o resultado
     """)
 
 # =========================
@@ -74,11 +78,13 @@ elif pagina == "Análise":
     # upload
     file = st.file_uploader("📁 Upload da planilha (CSV)", type=["csv"])
 
-    # termos
+    # =========================
+    # TERMOS POSITIVOS
+    # =========================
     st.markdown("## 🔑 Termos relevantes")
 
     termos_input = st.text_area(
-        "Edite ou cole os termos",
+        "Edite ou cole os termos relevantes",
         value="""fish community, fish assemblage, fish ecology
 comunidade de peixes, ecologia de peixes, ictiofauna
 marine ecosystem, ambiente marinho, oceano, estuario, manguezal
@@ -87,18 +93,48 @@ neotropical, tropical atlantic, gulf of mexico, caribbean sea"""
 
     termos_relevantes = preparar_termos(termos_input)
 
-    # função de classificação
+    # =========================
+    # TERMOS NEGATIVOS
+    # =========================
+    st.markdown("## 🚫 Termos para reduzir score")
+
+    termos_negativos_input = st.text_area(
+        "Artigos contendo esses termos terão score reduzido",
+        value="""freshwater, river, rio, fluvial, agua doce"""
+    )
+
+    termos_negativos = preparar_termos(termos_negativos_input)
+
+    # =========================
+    # FUNÇÃO CLASSIFICAÇÃO
+    # =========================
     def classificar(row):
+
         abstract = row[col_abstract]
         titulo = row[col_titulo]
         keywords = row[col_keywords]
 
-        score = (
+        # score positivo
+        score_positivo = (
             score_texto(abstract, termos_relevantes, 1) +
             score_texto(titulo, termos_relevantes, 2) +
             score_texto(keywords, termos_relevantes, 3)
         )
 
+        # score negativo
+        score_negativo_total = (
+            score_negativo(abstract, termos_negativos, 1) +
+            score_negativo(titulo, termos_negativos, 2) +
+            score_negativo(keywords, termos_negativos, 3)
+        )
+
+        # limitar desconto máximo
+        score_negativo_total = min(score_negativo_total, 6)
+
+        # score final
+        score = score_positivo - score_negativo_total
+
+        # classificação
         if score >= 6:
             classe = "Incluir"
         elif score >= 2:
@@ -106,16 +142,23 @@ neotropical, tropical atlantic, gulf of mexico, caribbean sea"""
         else:
             classe = "Excluir"
 
-        return pd.Series([classe, score])
+        return pd.Series([
+            classe,
+            score,
+            score_positivo,
+            score_negativo_total
+        ])
 
-    # execução
+    # =========================
+    # EXECUÇÃO
+    # =========================
     if file:
 
         df = pd.read_csv(file, encoding="latin1")
 
-        # validação de colunas
-        if len(df.columns) < 6:
-            st.error("❌ A planilha precisa ter pelo menos 6 colunas (A até F).")
+        # validação
+        if len(df.columns) < 3:
+            st.error("❌ A planilha precisa ter pelo menos 3 colunas.")
             st.stop()
 
         col_abstract = df.columns[0]
@@ -123,8 +166,10 @@ neotropical, tropical atlantic, gulf of mexico, caribbean sea"""
         col_keywords = df.columns[2]
 
         st.markdown("### 👀 Preview")
+
         st.dataframe(df.head())
 
+        # rodar
         if st.button("🚀 Rodar classificação"):
 
             # normalizar texto
@@ -132,16 +177,24 @@ neotropical, tropical atlantic, gulf of mexico, caribbean sea"""
             df[col_titulo] = df[col_titulo].apply(normalizar)
             df[col_keywords] = df[col_keywords].apply(normalizar)
 
-            # aplicar modelo
-            df[["cluster", "score"]] = df.apply(classificar, axis=1)
+            # classificar
+            df[
+                [
+                    "cluster",
+                    "score_final",
+                    "score_positivo",
+                    "score_negativo"
+                ]
+            ] = df.apply(classificar, axis=1)
 
             st.success("✅ Classificação concluída!")
 
             # resultado
             st.markdown("## 📄 Resultado")
+
             st.dataframe(df)
 
-            # contagem
+            # distribuição
             st.markdown("## 📊 Distribuição por categoria")
 
             counts = df["cluster"].value_counts().reset_index()
