@@ -730,7 +730,9 @@ Mostra o artigo mais fortemente relacionado à pesquisa.
 
 elif pagina == "Clusterização":
 
-    st.title("🧠 Clusterização Temática de Artigos")
+    st.title(
+        "🧠 Clusterização Temática"
+    )
 
     st.markdown("""
 
@@ -741,16 +743,11 @@ elif pagina == "Clusterização":
     - NLP não supervisionado
 
     para descobrir automaticamente:
-
     - temas
     - tópicos
     - grupos semânticos
 
-    dos artigos classificados.
-
-    ---
-
-    O sistema utilizará artigos classificados como:
+    O sistema utilizará apenas artigos classificados como:
 
     - ✅ Incluir
     - ⚠️ Avaliar
@@ -759,7 +756,7 @@ elif pagina == "Clusterização":
 
     - ❌ Excluir
 
-    não serão utilizados na clusterização.
+    não serão utilizados.
 
     """)
 
@@ -768,14 +765,24 @@ elif pagina == "Clusterização":
     # =====================================================
 
     file_cluster = st.file_uploader(
+
         "📁 Upload da planilha classificada",
+
         type=["csv"],
+
         key="clusterizacao"
+
     )
+
+    # =====================================================
+    # EXECUÇÃO
+    # =====================================================
 
     if file_cluster:
 
-        df_cluster = pd.read_csv(file_cluster)
+        df_cluster = pd.read_csv(
+            file_cluster
+        )
 
         # =================================================
         # VALIDAÇÃO
@@ -790,14 +797,16 @@ elif pagina == "Clusterização":
             st.stop()
 
         # =================================================
-        # FILTRAR INCLUIR + AVALIAR
+        # FILTRAR ARTIGOS
         # =================================================
 
         artigos_validos = df_cluster[
+
             df_cluster["cluster"].isin([
                 "Incluir",
                 "Avaliar"
             ])
+
         ].copy()
 
         # =================================================
@@ -807,7 +816,7 @@ elif pagina == "Clusterização":
         if len(artigos_validos) < 5:
 
             st.warning(
-                "⚠️ Poucos artigos classificados como 'Incluir' ou 'Avaliar'."
+                "⚠️ Poucos artigos válidos."
             )
 
             st.stop()
@@ -816,10 +825,7 @@ elif pagina == "Clusterização":
 
         ## 📊 Artigos utilizados
 
-        Total de artigos utilizados na clusterização:
-
-        - ✅ Incluir
-        - ⚠️ Avaliar
+        Total de artigos utilizados:
 
         **{len(artigos_validos)} artigos**
 
@@ -851,6 +857,7 @@ elif pagina == "Clusterização":
 
             + artigos_validos[col_abstract]
             .fillna("")
+
         )
 
         documentos = artigos_validos[
@@ -858,17 +865,60 @@ elif pagina == "Clusterização":
         ].tolist()
 
         # =================================================
-        # RODAR CLUSTERIZAÇÃO
+        # RODAR
         # =================================================
 
-        if st.button("🚀 Rodar clusterização temática"):
+        if st.button(
+            "🚀 Rodar clusterização temática"
+        ):
+
+            # =============================================
+            # STOPWORDS
+            # =============================================
+
+            stopwords_customizadas = [
+
+                # inglês
+                "the", "and", "or", "of",
+                "in", "on", "for", "to",
+                "from", "with", "by",
+                "an", "a", "is", "are",
+                "was", "were",
+                "this", "that",
+                "these", "those",
+
+                # português
+                "de", "da", "do",
+                "das", "dos",
+                "em", "no", "na",
+                "nos", "nas",
+                "para", "com", "por",
+                "um", "uma",
+                "os", "as",
+                "e", "ou"
+
+            ]
+
+            # =============================================
+            # VECTORIZER
+            # =============================================
+
+            vectorizer_model = CountVectorizer(
+
+                stop_words=stopwords_customizadas,
+
+                ngram_range=(1, 2),
+
+                min_df=2
+
+            )
 
             # =============================================
             # EMBEDDINGS
             # =============================================
 
             with st.spinner(
-                "🧠 Gerando embeddings semânticos..."
+                "🧠 Gerando embeddings..."
             ):
 
                 embedding_model = SentenceTransformer(
@@ -880,17 +930,27 @@ elif pagina == "Clusterização":
             # =============================================
 
             with st.spinner(
-                "📚 Descobrindo tópicos automaticamente..."
+                "📚 Descobrindo tópicos..."
             ):
 
                 topic_model = BERTopic(
+
                     language="multilingual",
+
                     verbose=True,
-                    calculate_probabilities=True
+
+                    calculate_probabilities=True,
+
+                    vectorizer_model=vectorizer_model,
+
+                    embedding_model=embedding_model
+
                 )
 
-                topics, probs = topic_model.fit_transform(
-                    documentos
+                topics, probs = (
+                    topic_model.fit_transform(
+                        documentos
+                    )
                 )
 
             # =============================================
@@ -900,10 +960,47 @@ elif pagina == "Clusterização":
             artigos_validos["topic"] = topics
 
             # =============================================
+            # GERAR NOMES DOS TÓPICOS
+            # =============================================
+
+            def gerar_nome_topic(topic_id):
+
+                palavras = topic_model.get_topic(
+                    topic_id
+                )
+
+                if palavras is None:
+
+                    return "Outlier"
+
+                if len(palavras) == 0:
+
+                    return "Outlier"
+
+                termos = [
+
+                    palavra[0]
+
+                    for palavra in palavras[:5]
+
+                ]
+
+                return " | ".join(termos)
+
+            artigos_validos["nome_topic"] = (
+
+                artigos_validos["topic"]
+                .apply(gerar_nome_topic)
+
+            )
+
+            # =============================================
             # INFO DOS TÓPICOS
             # =============================================
 
-            topic_info = topic_model.get_topic_info()
+            topic_info = (
+                topic_model.get_topic_info()
+            )
 
             st.success(
                 "✅ Clusterização concluída!"
@@ -920,7 +1017,7 @@ elif pagina == "Clusterização":
             st.dataframe(topic_info)
 
             # =============================================
-            # DISTRIBUIÇÃO DOS TÓPICOS
+            # DISTRIBUIÇÃO
             # =============================================
 
             st.markdown(
@@ -928,25 +1025,30 @@ elif pagina == "Clusterização":
             )
 
             topic_counts = (
-                artigos_validos["topic"]
+
+                artigos_validos["nome_topic"]
                 .value_counts()
-                .sort_index()
                 .reset_index()
+
             )
 
             topic_counts.columns = [
-                "Tópico",
+                "Tema",
                 "Quantidade"
             ]
 
             st.bar_chart(
+
                 data=topic_counts,
-                x="Tópico",
+
+                x="Tema",
+
                 y="Quantidade"
+
             )
 
             # =============================================
-            # EXEMPLOS POR TÓPICO
+            # EXEMPLOS POR TEMA
             # =============================================
 
             st.markdown(
@@ -959,8 +1061,12 @@ elif pagina == "Clusterização":
 
             for topico in topicos_unicos:
 
+                nome_topico = gerar_nome_topic(
+                    topico
+                )
+
                 st.markdown(
-                    f"### 🧠 Topic {topico}"
+                    f"### 🧠 {nome_topico}"
                 )
 
                 palavras = topic_model.get_topic(
@@ -978,9 +1084,13 @@ elif pagina == "Clusterização":
                     ]
 
                     st.markdown(
-                        "**Palavras-chave do tópico:** "
+
+                        "**Palavras-chave:** "
+
                         +
+
                         ", ".join(termos)
+
                     )
 
                 exemplos = artigos_validos[
@@ -994,8 +1104,9 @@ elif pagina == "Clusterização":
                     exemplos[[
 
                         col_titulo,
+                        "cluster",
                         "topic",
-                        "cluster"
+                        "nome_topic"
 
                     ]]
 
@@ -1006,24 +1117,26 @@ elif pagina == "Clusterização":
             # =============================================
 
             st.markdown(
-                "## 📚 Quantidade de artigos por tópico"
+                "## 📚 Quantidade de artigos por tema"
             )
 
             topic_table = (
-                artigos_validos["topic"]
+
+                artigos_validos["nome_topic"]
                 .value_counts()
                 .reset_index()
+
             )
 
             topic_table.columns = [
-                "Tópico",
+                "Tema",
                 "Quantidade"
             ]
 
             st.dataframe(topic_table)
 
             # =============================================
-            # DOWNLOAD
+            # DOWNLOAD FINAL
             # =============================================
 
             csv_topics = artigos_validos.to_csv(
@@ -1031,8 +1144,13 @@ elif pagina == "Clusterização":
             ).encode("utf-8")
 
             st.download_button(
+
                 "⬇️ Baixar artigos clusterizados",
+
                 csv_topics,
+
                 "artigos_clusterizados.csv",
+
                 "text/csv"
+
             )
