@@ -4,6 +4,8 @@ import unicodedata
 import re
 import matplotlib.pyplot as plt
 import numpy as np
+from bertopic import BERTopic
+from sentence_transformers import SentenceTransformer
 
 from sklearn.metrics import (
     accuracy_score,
@@ -716,3 +718,300 @@ Mostra o artigo mais fortemente relacionado à pesquisa.
             "artigos_ambiguos.csv",
             "text/csv"
         )
+
+# =========================================================
+# PÁGINA CLUSTERIZAÇÃO
+# =========================================================
+
+elif pagina == "Clusterização":
+
+    st.title("🧠 Clusterização Temática de Artigos")
+
+    st.markdown("""
+
+    Esta etapa utiliza:
+
+    - embeddings semânticos
+    - BERTopic
+    - NLP não supervisionado
+
+    para descobrir automaticamente:
+
+    - temas
+    - tópicos
+    - grupos semânticos
+
+    dos artigos classificados.
+
+    ---
+
+    O sistema utilizará apenas artigos classificados como:
+
+    - ✅ Incluir
+
+    Artigos:
+    - Avaliar
+    - Excluir
+
+    não serão utilizados na clusterização.
+
+    """)
+
+    # =====================================================
+    # UPLOAD
+    # =====================================================
+
+    file_cluster = st.file_uploader(
+        "📁 Upload da planilha classificada",
+        type=["csv"],
+        key="clusterizacao"
+    )
+
+    if file_cluster:
+
+        df_cluster = pd.read_csv(file_cluster)
+
+        # =================================================
+        # VALIDAÇÃO
+        # =================================================
+
+        if "cluster" not in df_cluster.columns:
+
+            st.error(
+                "❌ Coluna 'cluster' não encontrada."
+            )
+
+            st.stop()
+
+        # =================================================
+        # FILTRAR SOMENTE INCLUIR
+        # =================================================
+
+        artigos_validos = df_cluster[
+            df_cluster["cluster"] == "Incluir"
+        ].copy()
+
+        # =================================================
+        # VALIDAR QUANTIDADE
+        # =================================================
+
+        if len(artigos_validos) < 5:
+
+            st.warning(
+                "⚠️ Poucos artigos classificados como 'Incluir'."
+            )
+
+            st.stop()
+
+        st.markdown(f"""
+
+        ## 📊 Artigos utilizados
+
+        Total de artigos classificados como:
+
+        ✅ Incluir
+
+        **{len(artigos_validos)}**
+
+        """)
+
+        # =================================================
+        # COLUNAS
+        # =================================================
+
+        col_abstract = artigos_validos.columns[0]
+        col_titulo = artigos_validos.columns[1]
+        col_keywords = artigos_validos.columns[2]
+
+        # =================================================
+        # TEXTO COMPLETO
+        # =================================================
+
+        artigos_validos["texto_completo"] = (
+
+            artigos_validos[col_titulo]
+            .fillna("")
+
+            + " "
+
+            + artigos_validos[col_keywords]
+            .fillna("")
+
+            + " "
+
+            + artigos_validos[col_abstract]
+            .fillna("")
+        )
+
+        documentos = artigos_validos[
+            "texto_completo"
+        ].tolist()
+
+        # =================================================
+        # RODAR
+        # =================================================
+
+        if st.button("🚀 Rodar clusterização temática"):
+
+            # =============================================
+            # EMBEDDINGS
+            # =============================================
+
+            with st.spinner(
+                "🧠 Gerando embeddings semânticos..."
+            ):
+
+                embedding_model = SentenceTransformer(
+                    "all-MiniLM-L6-v2"
+                )
+
+            # =============================================
+            # BERTOPIC
+            # =============================================
+
+            with st.spinner(
+                "📚 Descobrindo tópicos automaticamente..."
+            ):
+
+                topic_model = BERTopic(
+                    language="multilingual",
+                    verbose=True,
+                    calculate_probabilities=True
+                )
+
+                topics, probs = topic_model.fit_transform(
+                    documentos
+                )
+
+            # =============================================
+            # SALVAR TOPICS
+            # =============================================
+
+            artigos_validos["topic"] = topics
+
+            # =============================================
+            # INFO DOS TÓPICOS
+            # =============================================
+
+            topic_info = topic_model.get_topic_info()
+
+            st.success(
+                "✅ Clusterização concluída!"
+            )
+
+            # =============================================
+            # TABELA DE TÓPICOS
+            # =============================================
+
+            st.markdown(
+                "## 🧩 Tópicos encontrados"
+            )
+
+            st.dataframe(topic_info)
+
+            # =============================================
+            # DISTRIBUIÇÃO
+            # =============================================
+
+            st.markdown(
+                "## 📊 Distribuição dos tópicos"
+            )
+
+            topic_counts = (
+                artigos_validos["topic"]
+                .value_counts()
+                .sort_index()
+            )
+
+            st.bar_chart(topic_counts)
+
+            # =============================================
+            # EXEMPLOS POR TÓPICO
+            # =============================================
+
+            st.markdown(
+                "## 🔍 Exemplos por tópico"
+            )
+
+            topicos_unicos = sorted(
+                artigos_validos["topic"].unique()
+            )
+
+            for topico in topicos_unicos:
+
+                st.markdown(
+                    f"### 🧠 Topic {topico}"
+                )
+
+                palavras = topic_model.get_topic(
+                    topico
+                )
+
+                if palavras:
+
+                    termos = [
+
+                        p[0]
+
+                        for p in palavras[:10]
+
+                    ]
+
+                    st.markdown(
+                        "**Palavras-chave do tópico:** "
+                        +
+                        ", ".join(termos)
+                    )
+
+                exemplos = artigos_validos[
+
+                    artigos_validos["topic"] == topico
+
+                ].head(5)
+
+                st.dataframe(
+
+                    exemplos[[
+
+                        col_titulo,
+                        "topic"
+
+                    ]]
+
+                )
+
+            # =============================================
+            # ARTIGOS POR TEMA
+            # =============================================
+
+            st.markdown(
+                "## 📚 Quantidade de artigos por tópico"
+            )
+
+            topic_table = (
+                artigos_validos["topic"]
+                .value_counts()
+                .reset_index()
+            )
+
+            topic_table.columns = [
+                "Tópico",
+                "Quantidade"
+            ]
+
+            st.dataframe(topic_table)
+
+            # =============================================
+            # DOWNLOAD
+            # =============================================
+
+            csv_topics = artigos_validos.to_csv(
+                index=False
+            ).encode("utf-8")
+
+            st.download_button(
+                "⬇️ Baixar artigos clusterizados",
+                csv_topics,
+                "artigos_clusterizados.csv",
+                "text/csv"
+            )
