@@ -4,8 +4,11 @@ import unicodedata
 import re
 import matplotlib.pyplot as plt
 import numpy as np
+
 from bertopic import BERTopic
 from sentence_transformers import SentenceTransformer
+
+from sklearn.feature_extraction.text import CountVectorizer
 
 from sklearn.metrics import (
     accuracy_score,
