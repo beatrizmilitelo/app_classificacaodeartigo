@@ -750,13 +750,14 @@ elif pagina == "Clusterização":
 
     ---
 
-    O sistema utilizará apenas artigos classificados como:
+    O sistema utilizará artigos classificados como:
 
     - ✅ Incluir
+    - ⚠️ Avaliar
 
-    Artigos:
-    - Avaliar
-    - Excluir
+    Artigos classificados como:
+
+    - ❌ Excluir
 
     não serão utilizados na clusterização.
 
@@ -789,11 +790,14 @@ elif pagina == "Clusterização":
             st.stop()
 
         # =================================================
-        # FILTRAR SOMENTE INCLUIR
+        # FILTRAR INCLUIR + AVALIAR
         # =================================================
 
         artigos_validos = df_cluster[
-            df_cluster["cluster"] == "Incluir"
+            df_cluster["cluster"].isin([
+                "Incluir",
+                "Avaliar"
+            ])
         ].copy()
 
         # =================================================
@@ -803,7 +807,7 @@ elif pagina == "Clusterização":
         if len(artigos_validos) < 5:
 
             st.warning(
-                "⚠️ Poucos artigos classificados como 'Incluir'."
+                "⚠️ Poucos artigos classificados como 'Incluir' ou 'Avaliar'."
             )
 
             st.stop()
@@ -812,11 +816,12 @@ elif pagina == "Clusterização":
 
         ## 📊 Artigos utilizados
 
-        Total de artigos classificados como:
+        Total de artigos utilizados na clusterização:
 
-        ✅ Incluir
+        - ✅ Incluir
+        - ⚠️ Avaliar
 
-        **{len(artigos_validos)}**
+        **{len(artigos_validos)} artigos**
 
         """)
 
@@ -853,7 +858,7 @@ elif pagina == "Clusterização":
         ].tolist()
 
         # =================================================
-        # RODAR
+        # RODAR CLUSTERIZAÇÃO
         # =================================================
 
         if st.button("🚀 Rodar clusterização temática"):
@@ -915,7 +920,7 @@ elif pagina == "Clusterização":
             st.dataframe(topic_info)
 
             # =============================================
-            # DISTRIBUIÇÃO
+            # DISTRIBUIÇÃO DOS TÓPICOS
             # =============================================
 
             st.markdown(
@@ -926,9 +931,19 @@ elif pagina == "Clusterização":
                 artigos_validos["topic"]
                 .value_counts()
                 .sort_index()
+                .reset_index()
             )
 
-            st.bar_chart(topic_counts)
+            topic_counts.columns = [
+                "Tópico",
+                "Quantidade"
+            ]
+
+            st.bar_chart(
+                data=topic_counts,
+                x="Tópico",
+                y="Quantidade"
+            )
 
             # =============================================
             # EXEMPLOS POR TÓPICO
@@ -979,14 +994,15 @@ elif pagina == "Clusterização":
                     exemplos[[
 
                         col_titulo,
-                        "topic"
+                        "topic",
+                        "cluster"
 
                     ]]
 
                 )
 
             # =============================================
-            # ARTIGOS POR TEMA
+            # TABELA FINAL
             # =============================================
 
             st.markdown(
