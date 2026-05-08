@@ -3,3 +3,9 @@ pandas
 numpy
 scikit-learn
 matplotlib
+bertopic
+sentence-transformers
+transformers
+torch
+umap-learn
+hdbscan
