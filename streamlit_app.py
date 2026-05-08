@@ -30,7 +30,12 @@ st.set_page_config(
 
 pagina = st.sidebar.radio(
     "Navegação",
-    ["Início", "Análise", "Métricas"]
+    [
+        "Início",
+        "Análise",
+        "Métricas",
+        "Clusterização"
+    ]
 )
 
 # =========================================================
